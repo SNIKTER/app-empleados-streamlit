@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # ============================================
-# 🔐 LOGIN CORPORATIVO PROFESIONAL
+# 🔐 LOGIN CORPORATIVO PROFESIONAL - CORREGIDO
 # ============================================
 def check_password():
     """Diseño corporativo profesional - limpio y elegante"""
@@ -61,6 +61,13 @@ def check_password():
             display: flex;
             min-height: 100vh;
             width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 999999;
+            background: white;
         }
         
         /* Panel izquierdo - Branding */
@@ -214,6 +221,11 @@ def check_password():
         .stAlert {
             border-radius: 8px;
             border-left: 4px solid #dc2626;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999999;
+            width: 400px;
         }
         
         /* Footer */
@@ -233,6 +245,7 @@ def check_password():
         @media (max-width: 768px) {
             .login-wrapper {
                 flex-direction: column;
+                position: relative;
             }
             
             .brand-panel {
@@ -249,6 +262,12 @@ def check_password():
             
             .brand-feature {
                 justify-content: center;
+            }
+            
+            .stAlert {
+                width: 90%;
+                left: 5%;
+                right: 5%;
             }
         }
     </style>
@@ -267,19 +286,19 @@ def check_password():
                 <div class="brand-subtitle">Plataforma integral para la administración del talento humano</div>
                 
                 <div class="brand-feature">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                         <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2"/>
                     </svg>
                     <span>Gestión en tiempo real</span>
                 </div>
                 <div class="brand-feature">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                         <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2"/>
                     </svg>
                     <span>Actualización automática</span>
                 </div>
                 <div class="brand-feature">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                         <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2"/>
                     </svg>
                     <span>Acceso seguro y controlado</span>
@@ -296,16 +315,20 @@ def check_password():
                 </div>
     """, unsafe_allow_html=True)
     
-    # Campo de contraseña
-    st.text_input(
+    # Campo de contraseña - ESTO DEBE ESTAR FUERA DEL st.markdown
+    password = st.text_input(
         "Contraseña de acceso",
         type="password",
         key="password",
-        on_change=password_entered,
         placeholder="••••••••",
         label_visibility="collapsed"
     )
     
+    # Botón de acceso - Streamlit nativo
+    if st.button("Iniciar sesión", type="primary", use_container_width=True):
+        password_entered()
+    
+    # Footer
     st.markdown("""
                 <div class="login-footer">
                     <p>© 2026 FINANZAUTO S.A. BIC</p>
@@ -783,3 +806,4 @@ elif menu == "🗑️ Eliminar Empleado":
                     st.rerun()
     else:
         st.info("No hay empleados")
+
