@@ -19,129 +19,64 @@ st.set_page_config(
 )
 
 # ============================================
-# 🔐 LOGIN SENCILLO PROFESIONAL
+# INICIALIZACIÓN
+# ============================================
+if 'autenticado' not in st.session_state:
+    st.session_state.autenticado = False
+
+# ============================================
+# 🔐 LOGIN - 100% FUNCIONAL
 # ============================================
 def check_password():
-    """Login sencillo, limpio y profesional"""
-    
-    if "PASSWORD" not in st.secrets:
-        st.error("❌ Error: PASSWORD no configurado en Secrets")
-        return False
-    
-    def password_entered():
-        if hmac.compare_digest(st.session_state["password"], st.secrets["PASSWORD"]):
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-    
-    if st.session_state.get("password_correct", False):
+    if st.session_state.get("autenticado", False):
         return True
     
-    # CSS minimalista profesional
-    st.markdown("""
-    <style>
-        /* Fondo limpio */
-        .stApp {
-            background-color: #f8fafc;
-        }
-        
-        /* Contenedor centrado */
-        .login-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            width: 100%;
-        }
-        
-        /* Tarjeta blanca */
-        .login-card {
-            background: white;
-            padding: 48px 40px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-            width: 100%;
-            max-width: 400px;
-            border: 1px solid #f1f5f9;
-        }
-        
-        /* Logo o ícono */
-        .login-icon {
-            width: 48px;
-            height: 48px;
-            background: #0a1e3c;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 24px;
-        }
-        
-        /* Título */
-        .login-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #0a1e3c;
-            margin-bottom: 8px;
-        }
-        
-        /* Subtítulo */
-        .login-subtitle {
-            font-size: 14px;
-            color: #64748b;
-            margin-bottom: 32px;
-        }
-        
-        /* Footer */
-        .login-footer {
-            margin-top: 48px;
-            text-align: center;
-            font-size: 12px;
-            color: #94a3b8;
-            border-top: 1px solid #f1f5f9;
-            padding-top: 24px;
-        }
-    </style>
+    st.title("🔐 Sistema de Gestión de Empleados")
+    st.markdown("---")
     
-    <div class="login-container">
-        <div class="login-card">
-            <div class="login-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                    <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21"/>
-                    <circle cx="12" cy="8" r="4"/>
-                </svg>
-            </div>
-            <div class="login-title">Acceso al sistema</div>
-            <div class="login-subtitle">Ingrese su contraseña para continuar</div>
-    """, unsafe_allow_html=True)
-    
-    # Input de contraseña (nativo Streamlit)
-    password = st.text_input(
-        "Contraseña",
-        type="password",
-        key="password",
-        placeholder="••••••••",
-        label_visibility="collapsed"
-    )
-    
-    # Botón de acceso (nativo Streamlit)
-    if st.button("Ingresar", use_container_width=True):
-        password_entered()
-    
-    # Footer
-    st.markdown("""
-            <div class="login-footer">
-                FINANZAUTO S.A. BIC · Gestión de Empleados
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.session_state.get("password_correct") == False:
-        st.error("❌ Contraseña incorrecta")
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.image("https://img.icons8.com/color/96/000000/employee-card.png", width=120)
+        st.markdown("## Acceso al sistema")
+        st.markdown("### FINANZAUTO S.A. BIC")
+        st.markdown("---")
+        
+        password = st.text_input(
+            "Contraseña",
+            type="password",
+            key="password_input",
+            placeholder="Ingrese su contraseña"
+        )
+        
+        if st.button("Ingresar", type="primary", use_container_width=True):
+            if "PASSWORD" in st.secrets:
+                if hmac.compare_digest(password, st.secrets["PASSWORD"]):
+                    st.session_state.autenticado = True
+                    st.rerun()
+                else:
+                    st.error("❌ Contraseña incorrecta")
+            else:
+                st.error("❌ Error: PASSWORD no configurado en Secrets")
+        
+        st.markdown("---")
+        st.caption("© 2026 FINANZAUTO S.A. BIC")
     
     return False
+
+# 🔐 VERIFICAR AUTENTICACIÓN
+if not check_password():
+    st.stop()
+
+# ============================================
+# 🚀 APLICACIÓN PRINCIPAL (SOLO SI ESTÁ AUTENTICADO)
+# ============================================
+st.success("✅ ¡Bienvenido! Has iniciado sesión correctamente.")
+st.write("Aquí va tu aplicación de gestión de empleados...")
+
+# Botón para cerrar sesión
+if st.sidebar.button("🚪 Cerrar sesión"):
+    st.session_state.autenticado = False
+    st.rerun()
 # ============================================
 # 🔐 VERIFICAR AUTENTICACIÓN
 # ============================================
@@ -604,5 +539,6 @@ elif menu == "🗑️ Eliminar Empleado":
                     st.rerun()
     else:
         st.info("No hay empleados")
+
 
 
