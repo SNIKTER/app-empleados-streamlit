@@ -14,95 +14,318 @@ import hmac
 st.set_page_config(
     page_title="Sistema Gestión Empleados",
     page_icon="👔",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # ============================================
-# 🔐 SISTEMA DE LOGIN - CONTRASEÑA ÚNICA (OPCIÓN 1)
+# 🔐 LOGIN CORPORATIVO PROFESIONAL
 # ============================================
 def check_password():
-    """Retorna True si el usuario ingresó la contraseña correcta"""
+    """Diseño corporativo profesional - limpio y elegante"""
     
-    # Verificar que el secret existe
     if "PASSWORD" not in st.secrets:
         st.error("❌ Error: PASSWORD no configurado en Secrets")
         return False
     
     def password_entered():
-        """Verifica la contraseña ingresada"""
         if hmac.compare_digest(st.session_state["password"], st.secrets["PASSWORD"]):
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # No guardar contraseña
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
     
-    # Si ya está autenticado, permitir acceso
     if st.session_state.get("password_correct", False):
         return True
     
-    # Mostrar formulario de login
+    # CSS Corporativo Profesional
     st.markdown("""
     <style>
+        /* RESET Y BASE */
         .stApp {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-color: #ffffff;
         }
-        .login-box {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        
+        /* Eliminar padding y márgenes por defecto */
+        .main > div {
+            padding: 0 !important;
+        }
+        
+        /* Ocultar elementos por defecto */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        
+        /* Contenedor principal */
+        .login-wrapper {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+        }
+        
+        /* Panel izquierdo - Branding */
+        .brand-panel {
+            flex: 1;
+            background: linear-gradient(165deg, #0a1e3c 0%, #0b2c4a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .brand-panel::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="none"/><path d="M0 0 L100 100 M100 0 L0 100" stroke="rgba(255,255,255,0.03)" stroke-width="1"/></svg>');
+            opacity: 0.4;
+        }
+        
+        .brand-content {
+            position: relative;
+            z-index: 2;
             max-width: 400px;
-            margin: 100px auto;
+            color: white;
+        }
+        
+        .brand-icon {
+            width: 64px;
+            height: 64px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 32px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .brand-title {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+        }
+        
+        .brand-subtitle {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-bottom: 48px;
+            line-height: 1.6;
+        }
+        
+        .brand-feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            font-size: 15px;
+            opacity: 0.9;
+        }
+        
+        .brand-feature svg {
+            flex-shrink: 0;
+        }
+        
+        /* Panel derecho - Login */
+        .login-panel {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            background-color: white;
+        }
+        
+        .login-card {
+            width: 100%;
+            max-width: 360px;
+        }
+        
+        .login-header {
+            margin-bottom: 40px;
+        }
+        
+        .login-header h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
+        }
+        
+        .login-header p {
+            font-size: 14px;
+            color: #64748b;
+        }
+        
+        /* Input personalizado */
+        .stTextInput > div {
+            margin-bottom: 24px;
+        }
+        
+        .stTextInput > div > div {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        
+        .stTextInput > div > div:hover {
+            border-color: #94a3b8;
+        }
+        
+        .stTextInput > div > div:focus-within {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+        }
+        
+        .stTextInput input {
+            padding: 12px 16px !important;
+            font-size: 15px !important;
+        }
+        
+        /* Botón */
+        .stButton > button {
+            background: #0a1e3c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: 500;
+            width: 100%;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+        
+        .stButton > button:hover {
+            background: #0b2c4a;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(10,30,60,0.15);
+        }
+        
+        /* Mensaje de error */
+        .stAlert {
+            border-radius: 8px;
+            border-left: 4px solid #dc2626;
+        }
+        
+        /* Footer */
+        .login-footer {
+            margin-top: 48px;
             text-align: center;
+            color: #94a3b8;
+            font-size: 13px;
         }
-        .login-title {
-            color: #333;
-            margin-bottom: 10px;
+        
+        .login-footer span {
+            color: #0a1e3c;
+            font-weight: 500;
         }
-        .login-subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 0.9em;
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .login-wrapper {
+                flex-direction: column;
+            }
+            
+            .brand-panel {
+                padding: 60px 24px;
+            }
+            
+            .brand-content {
+                text-align: center;
+            }
+            
+            .brand-icon {
+                margin: 0 auto 32px auto;
+            }
+            
+            .brand-feature {
+                justify-content: center;
+            }
         }
     </style>
+    
+    <div class="login-wrapper">
+        <!-- Panel Izquierdo - Branding -->
+        <div class="brand-panel">
+            <div class="brand-content">
+                <div class="brand-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+                        <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12Z"/>
+                        <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21"/>
+                    </svg>
+                </div>
+                <div class="brand-title">Sistema de Gestión<br>de Empleados</div>
+                <div class="brand-subtitle">Plataforma integral para la administración del talento humano</div>
+                
+                <div class="brand-feature">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                        <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2"/>
+                    </svg>
+                    <span>Gestión en tiempo real</span>
+                </div>
+                <div class="brand-feature">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                        <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2"/>
+                    </svg>
+                    <span>Actualización automática</span>
+                </div>
+                <div class="brand-feature">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2">
+                        <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2"/>
+                    </svg>
+                    <span>Acceso seguro y controlado</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel Derecho - Login -->
+        <div class="login-panel">
+            <div class="login-card">
+                <div class="login-header">
+                    <h2>Acceso al sistema</h2>
+                    <p>Ingrese sus credenciales para continuar</p>
+                </div>
     """, unsafe_allow_html=True)
     
-    # Contenedor del login
-    with st.container():
-        st.markdown('<div class="login-box">', unsafe_allow_html=True)
-        
-        # Logo
-        st.image("https://img.icons8.com/color/96/000000/employee-card.png", width=100)
-        
-        # Título
-        st.markdown('<h2 class="login-title">🔐 Sistema de Gestión</h2>', unsafe_allow_html=True)
-        st.markdown('<p class="login-subtitle">Ingrese la contraseña de acceso</p>', unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Campo de contraseña
-        st.text_input(
-            "Contraseña",
-            type="password",
-            key="password",
-            on_change=password_entered,
-            placeholder="Ingrese la contraseña"
-        )
-        
-        st.markdown("---")
-        st.markdown('<p style="color: #999; font-size: 0.8em;">© 2026 - Gestión de Empleados</p>', unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Campo de contraseña
+    st.text_input(
+        "Contraseña de acceso",
+        type="password",
+        key="password",
+        on_change=password_entered,
+        placeholder="••••••••",
+        label_visibility="collapsed"
+    )
     
-    # Mostrar error si la contraseña es incorrecta
+    st.markdown("""
+                <div class="login-footer">
+                    <p>© 2026 FINANZAUTO S.A. BIC</p>
+                    <p style="margin-top: 8px;">Todos los derechos reservados · <span>v2.0.1</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     if st.session_state.get("password_correct") == False:
-        st.error("❌ Contraseña incorrecta")
+        st.error("❌ La contraseña ingresada no es correcta")
     
     return False
 
-# 🔐 VERIFICAR AUTENTICACIÓN ANTES DE MOSTRAR CUALQUIER COSA
+# ============================================
+# 🔐 VERIFICAR AUTENTICACIÓN
+# ============================================
 if not check_password():
-    st.stop()  # Detener ejecución si no está autenticado
+    st.stop()
 
 # ============================================
 # VERIFICAR SECRETS
@@ -127,6 +350,151 @@ if 'ultima_actualizacion' not in st.session_state:
     st.session_state.menu_seleccion = "📋 Ver Empleados"
 
 # ============================================
+# BARRA SUPERIOR - HEADER CORPORATIVO
+# ============================================
+st.markdown("""
+<style>
+    /* Header corporativo */
+    .corporate-header {
+        background: white;
+        padding: 16px 24px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .corporate-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .corporate-title h1 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #0a1e3c;
+        margin: 0;
+    }
+    
+    .corporate-badge {
+        background: #f1f5f9;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        color: #0a1e3c;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .logout-btn {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 16px;
+        color: #64748b;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .logout-btn:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
+    }
+</style>
+
+<div class="corporate-header">
+    <div class="corporate-title">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0a1e3c" stroke-width="1.5">
+            <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12Z"/>
+            <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21"/>
+        </svg>
+        <h1>Sistema de Gestión de Empleados</h1>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <div class="corporate-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0a1e3c" stroke-width="2">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            </svg>
+            <span>SESIÓN ACTIVA</span>
+        </div>
+""", unsafe_allow_html=True)
+
+col1, col2 = st.columns([1,1])
+with col1:
+    if st.button("🚪 Cerrar Sesión", key="logout_btn"):
+        st.session_state.password_correct = False
+        st.rerun()
+
+st.markdown("</div></div>", unsafe_allow_html=True)
+
+# ============================================
+# MENÚ LATERAL - CORPORATIVO
+# ============================================
+st.sidebar.markdown("""
+<style>
+    .sidebar-brand {
+        padding: 24px 16px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .sidebar-brand h3 {
+        color: #0a1e3c;
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .sidebar-brand p {
+        color: #64748b;
+        font-size: 12px;
+        margin: 4px 0 0 0;
+    }
+    
+    .sidebar-footer {
+        position: fixed;
+        bottom: 0;
+        padding: 24px 16px;
+        font-size: 11px;
+        color: #94a3b8;
+    }
+</style>
+
+<div class="sidebar-brand">
+    <h3>FINANZAUTO S.A. BIC</h3>
+    <p>Gestión de Talento Humano</p>
+</div>
+""", unsafe_allow_html=True)
+
+st.sidebar.title("📋 Menú Principal")
+
+def cambiar_menu():
+    st.session_state.menu_seleccion = st.session_state._menu_widget
+
+st.sidebar.radio(
+    "Opciones",
+    ["📋 Ver Empleados", "➕ Agregar Empleado", "✏️ Editar Empleado", "🗑️ Eliminar Empleado"],
+    key="_menu_widget",
+    on_change=cambiar_menu,
+    label_visibility="collapsed"
+)
+
+st.sidebar.markdown(f"""
+<div class="sidebar-footer">
+    <div style="margin-bottom: 8px;">📁 {GITHUB_REPO}</div>
+    <div>🕐 {datetime.now().strftime('%H:%M:%S')}</div>
+    <div style="margin-top: 16px;">© 2026 v2.0.1</div>
+</div>
+""", unsafe_allow_html=True)
+
+menu = st.session_state.menu_seleccion
+
+# ============================================
 # FUNCIONES DE GITHUB - SIN CACHÉ CDN
 # ============================================
 def obtener_empleados():
@@ -139,9 +507,8 @@ def obtener_empleados():
         if response.status_code == 200:
             df = pd.read_json(response.text)
             return df
-        else:
-            return pd.DataFrame()
-    except Exception as e:
+        return pd.DataFrame()
+    except:
         return pd.DataFrame()
 
 def guardar_solicitud(tipo, datos):
@@ -214,45 +581,13 @@ def verificar_id_disponible(df, empleadoId, solicitudes_pendientes):
     return True, "✅ ID disponible"
 
 # ============================================
-# BARRA SUPERIOR - USUARIO AUTENTICADO
-# ============================================
-col1, col2, col3 = st.columns([3,1,1])
-with col1:
-    st.title("👔 SISTEMA DE GESTIÓN DE EMPLEADOS")
-with col3:
-    if st.button("🚪 Cerrar Sesión"):
-        st.session_state.password_correct = False
-        st.rerun()
-
-st.markdown("---")
-
-# ============================================
-# MENÚ LATERAL
-# ============================================
-st.sidebar.title("📋 MENÚ PRINCIPAL")
-
-def cambiar_menu():
-    st.session_state.menu_seleccion = st.session_state._menu_widget
-
-st.sidebar.radio(
-    "Seleccione una opción",
-    ["📋 Ver Empleados", "➕ Agregar Empleado", "✏️ Editar Empleado", "🗑️ Eliminar Empleado"],
-    key="_menu_widget",
-    on_change=cambiar_menu
-)
-
-menu = st.session_state.menu_seleccion
-st.sidebar.success(f"📁 {GITHUB_REPO}")
-st.sidebar.info("🔐 Sesión activa")
-
-# ============================================
 # AUTO-REFRESH - SOLO EN VER EMPLEADOS
 # ============================================
 if menu == "📋 Ver Empleados":
     ahora = datetime.now()
     delta = (ahora - st.session_state.ultima_actualizacion).seconds
     
-    col1, col2, col3 = st.columns([1,1,3])
+    col1, col2, col3 = st.columns([1,1,4])
     with col1:
         if st.button("🔄 Recargar", use_container_width=True):
             st.cache_data.clear()
@@ -260,12 +595,10 @@ if menu == "📋 Ver Empleados":
             st.session_state.refresh_count += 1
             st.rerun()
     with col2:
-        st.info(f"🔄 #{st.session_state.refresh_count}")
+        st.info(f"#{st.session_state.refresh_count}")
     with col3:
         if delta < 30:
-            st.success(f"⏱️ Datos actualizados hace {delta} segundos")
-        else:
-            st.warning(f"⏱️ Última actualización hace {delta} segundos")
+            st.caption(f"✅ Datos actualizados hace {delta} segundos")
     
     if delta >= 30:
         st.session_state.ultima_actualizacion = ahora
@@ -308,8 +641,6 @@ if menu == "📋 Ver Empleados":
             if st.session_state.ultimo_id_agregado in df['empleadoId'].values:
                 st.success(f"✅ Nuevo empleado ID {st.session_state.ultimo_id_agregado} agregado")
                 st.session_state.ultimo_id_agregado = None
-            else:
-                st.info(f"⏳ Procesando ID {st.session_state.ultimo_id_agregado}...")
     else:
         st.warning("No hay empleados registrados")
 
@@ -426,7 +757,8 @@ elif menu == "🗑️ Eliminar Empleado":
             empleado = df[df['empleadoId'] == empleadoId].iloc[0]
             
             st.error(f"""
-            ### ⚠️ ¿Eliminar?
+            ### ⚠️ ¿Eliminar este empleado?
+            
             **ID:** {empleado['empleadoId']}  
             **Nombre:** {empleado['Nombre']}  
             **Cargo:** {empleado['Cargo']}
@@ -451,15 +783,3 @@ elif menu == "🗑️ Eliminar Empleado":
                     st.rerun()
     else:
         st.info("No hay empleados")
-
-# ============================================
-# PIE DE PÁGINA
-# ============================================
-st.markdown("---")
-st.markdown(f"""
-<div style='text-align: center; color: gray;'>
-    <p>⚡ <strong>SISTEMA SEGURO</strong> - Acceso restringido</p>
-    <p>🔄 Última recarga: {datetime.now().strftime('%H:%M:%S')}</p>
-    <p>🔐 Sesión activa - Usuario autorizado</p>
-</div>
-""", unsafe_allow_html=True)
