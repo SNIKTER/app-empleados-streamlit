@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from github import Github
 import base64
+import json 
 from datetime import datetime
 
 # ============================================
@@ -280,3 +281,4 @@ st.markdown("""
     <p>🔄 Actualización automática cada 60 segundos</p>
 </div>
 """, unsafe_allow_html=True)
+
