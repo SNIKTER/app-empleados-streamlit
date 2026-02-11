@@ -2,11 +2,10 @@ import streamlit as st
 import pandas as pd
 from github import Github
 import base64
-import json
 from datetime import datetime
 
 # ============================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN - SOLO LECTURA DE GITHUB
 # ============================================
 st.set_page_config(
     page_title="Sistema Gestión Empleados",
@@ -18,20 +17,44 @@ st.title("👔 SISTEMA DE GESTIÓN DE EMPLEADOS")
 st.markdown("---")
 
 # ============================================
-# FUNCIONES GITHUB
+# CACHÉ DE STREAMLIT (MUY RÁPIDO)
 # ============================================
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)  # Cache de 60 segundos
 def obtener_empleados():
-    """Lee empleados desde GitHub"""
+    """⚡ SOLO LEE DE GITHUB - NUNCA DE SQL SERVER"""
     try:
         g = Github(st.secrets["GITHUB_TOKEN"])
         repo = g.get_repo(st.secrets["GITHUB_REPO"])
+        
+        # Leer datos actualizados (cada 5 min desde SQL Server)
         contents = repo.get_contents("datos/empleados_actualizado.json")
         df = pd.read_json(base64.b64decode(contents.content).decode('utf-8'))
+        
         return df
-    except:
+    except Exception as e:
+        st.error(f"Error cargando datos: {e}")
         return pd.DataFrame()
 
+@st.cache_data(ttl=10)  # Cache más corto para solicitudes
+def obtener_solicitudes_pendientes():
+    """Lee solicitudes pendientes (solo para validación)"""
+    try:
+        g = Github(st.secrets["GITHUB_TOKEN"])
+        repo = g.get_repo(st.secrets["GITHUB_REPO"])
+        
+        try:
+            contents = repo.get_contents("solicitudes/solicitudes_pendientes.json")
+            solicitudes = json.loads(base64.b64decode(contents.content).decode('utf-8'))
+            pendientes = [s for s in solicitudes if s.get('estado') == 'pendiente']
+            return pendientes
+        except:
+            return []
+    except:
+        return []
+
+# ============================================
+# FUNCIÓN PARA GUARDAR SOLICITUDES
+# ============================================
 def guardar_solicitud(tipo, datos):
     """Guarda solicitud en GitHub"""
     try:
@@ -59,7 +82,7 @@ def guardar_solicitud(tipo, datos):
         if 'contents' in locals():
             repo.update_file(
                 "solicitudes/solicitudes_pendientes.json",
-                f"{tipo} - {datos.get('empleadoId', datos.get('Nombre'))}",
+                f"Nueva solicitud {tipo} - {datos.get('empleadoId', '')}",
                 json.dumps(solicitudes, indent=2),
                 contents.sha
             )
@@ -70,21 +93,32 @@ def guardar_solicitud(tipo, datos):
                 json.dumps(solicitudes, indent=2)
             )
         
-        return True, "Solicitud guardada correctamente"
+        return True, "Solicitud guardada"
     except Exception as e:
         return False, str(e)
 
 # ============================================
-# VERIFICAR ID DUPLICADO
+# VERIFICAR ID DISPONIBLE
 # ============================================
 def verificar_id_disponible(df, empleadoId):
-    """Verifica si un ID ya existe en la tabla"""
+    """Verifica si un ID ya existe (usando datos de GitHub)"""
     if df.empty:
         return True
-    return empleadoId not in df['empleadoId'].values
+    
+    # Verificar en datos actuales
+    if empleadoId in df['empleadoId'].values:
+        return False
+    
+    # Verificar en solicitudes pendientes
+    pendientes = obtener_solicitudes_pendientes()
+    for sol in pendientes:
+        if sol['tipo'] == 'INSERT' and sol['datos'].get('empleadoId') == empleadoId:
+            return False
+    
+    return True
 
 # ============================================
-# MENÚ
+# INTERFAZ DE USUARIO
 # ============================================
 menu = st.sidebar.selectbox(
     "Menú Principal",
@@ -92,26 +126,34 @@ menu = st.sidebar.selectbox(
 )
 
 # ============================================
-# 1. VER EMPLEADOS
+# 1. VER EMPLEADOS - ⚡ INSTANTÁNEO (SOLO GITHUB)
 # ============================================
 if menu == "📋 Ver Empleados":
     st.header("📋 Lista de Empleados")
     
-    df = obtener_empleados()
+    # ⚡ ESTO ES RAPIDÍSIMO - Lee de GitHub cacheado
+    with st.spinner("Cargando..."):
+        df = obtener_empleados()
     
     if not df.empty:
-        col1, col2 = st.columns(2)
+        # Métricas
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Empleados", len(df))
         with col2:
-            st.metric("Último ID", df['empleadoId'].max())
+            ultima = df['FechaActualizacion'].iloc[0][:10] if 'FechaActualizacion' in df.columns else 'Hoy'
+            st.metric("Última actualización", ultima)
+        with col3:
+            st.metric("IDs disponibles", f"{df['empleadoId'].max() + 1} en adelante")
         
+        # Tabla ordenada
         st.dataframe(
             df[['empleadoId', 'Nombre', 'Cargo']].sort_values('empleadoId'),
             use_container_width=True,
             hide_index=True
         )
         
+        # Botón descarga
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
             "📥 Descargar Excel",
@@ -122,11 +164,12 @@ if menu == "📋 Ver Empleados":
         st.info("No hay empleados registrados")
 
 # ============================================
-# 2. AGREGAR EMPLEADO (CON VALIDACIÓN DE ID)
+# 2. AGREGAR EMPLEADO
 # ============================================
 elif menu == "➕ Agregar Empleado":
     st.header("➕ Agregar Nuevo Empleado")
     
+    # Cargar datos actuales para validación
     df = obtener_empleados()
     
     with st.form("form_agregar", clear_on_submit=True):
@@ -136,14 +179,14 @@ elif menu == "➕ Agregar Empleado":
         with col2:
             nombre = st.text_input("Nombre Completo *")
         
-        cargo = st.text_input("Cargo *")
+        cargo = st.text_input("Cargo *", max_chars=100)
+        st.caption(f"Caracteres: {len(cargo)}/100")
         
         if st.form_submit_button("💾 Guardar", type="primary"):
             if empleadoId and nombre and cargo:
-                # VALIDAR ID DUPLICADO
+                # Validar ID disponible
                 if not verificar_id_disponible(df, empleadoId):
                     st.error(f"❌ El ID {empleadoId} ya existe en la base de datos")
-                    st.info("💡 Por favor, usa un ID diferente")
                 else:
                     with st.spinner("Guardando solicitud..."):
                         datos = {
@@ -154,7 +197,8 @@ elif menu == "➕ Agregar Empleado":
                         success, msg = guardar_solicitud("INSERT", datos)
                         
                         if success:
-                            st.success(f"✅ Solicitud guardada. Empleado ID: {empleadoId}")
+                            st.success(f"✅ Solicitud guardada - ID: {empleadoId}")
+                            st.info("🔄 Los cambios se verán en 1-5 minutos")
                             st.balloons()
                         else:
                             st.error(f"❌ Error: {msg}")
@@ -180,7 +224,7 @@ elif menu == "✏️ Editar Empleado":
             
             with st.form("form_editar"):
                 nombre = st.text_input("Nombre", value=emp['Nombre'])
-                cargo = st.text_input("Cargo", value=emp['Cargo'])
+                cargo = st.text_input("Cargo", value=emp['Cargo'], max_chars=100)
                 
                 if st.form_submit_button("🔄 Actualizar", type="primary"):
                     datos = {
@@ -191,7 +235,7 @@ elif menu == "✏️ Editar Empleado":
                     success, msg = guardar_solicitud("UPDATE", datos)
                     
                     if success:
-                        st.success(f"✅ Solicitud de actualización guardada - ID: {empleadoId}")
+                        st.success(f"✅ Solicitud guardada - ID: {empleadoId}")
                     else:
                         st.error(f"❌ Error: {msg}")
     else:
@@ -232,6 +276,7 @@ elif menu == "🗑️ Eliminar Empleado":
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray;'>
-    <p>✅ IDs MANUALES - Validación de duplicados</p>
+    <p>⚡ RÁPIDO: Datos servidos desde caché de GitHub</p>
+    <p>🔄 Actualización automática cada 60 segundos</p>
 </div>
 """, unsafe_allow_html=True)
