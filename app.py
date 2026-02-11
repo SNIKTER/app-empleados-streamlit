@@ -6,9 +6,10 @@ import json
 from datetime import datetime
 import requests
 import time
+import hmac
 
 # ============================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN - SIN CACHÉ
 # ============================================
 st.set_page_config(
     page_title="Sistema Gestión Empleados",
@@ -16,8 +17,92 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("👔 SISTEMA DE GESTIÓN DE EMPLEADOS")
-st.markdown("---")
+# ============================================
+# 🔐 SISTEMA DE LOGIN - CONTRASEÑA ÚNICA (OPCIÓN 1)
+# ============================================
+def check_password():
+    """Retorna True si el usuario ingresó la contraseña correcta"""
+    
+    # Verificar que el secret existe
+    if "PASSWORD" not in st.secrets:
+        st.error("❌ Error: PASSWORD no configurado en Secrets")
+        return False
+    
+    def password_entered():
+        """Verifica la contraseña ingresada"""
+        if hmac.compare_digest(st.session_state["password"], st.secrets["PASSWORD"]):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # No guardar contraseña
+        else:
+            st.session_state["password_correct"] = False
+    
+    # Si ya está autenticado, permitir acceso
+    if st.session_state.get("password_correct", False):
+        return True
+    
+    # Mostrar formulario de login
+    st.markdown("""
+    <style>
+        .stApp {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .login-box {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 400px;
+            margin: 100px auto;
+            text-align: center;
+        }
+        .login-title {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .login-subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Contenedor del login
+    with st.container():
+        st.markdown('<div class="login-box">', unsafe_allow_html=True)
+        
+        # Logo
+        st.image("https://img.icons8.com/color/96/000000/employee-card.png", width=100)
+        
+        # Título
+        st.markdown('<h2 class="login-title">🔐 Sistema de Gestión</h2>', unsafe_allow_html=True)
+        st.markdown('<p class="login-subtitle">Ingrese la contraseña de acceso</p>', unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Campo de contraseña
+        st.text_input(
+            "Contraseña",
+            type="password",
+            key="password",
+            on_change=password_entered,
+            placeholder="Ingrese la contraseña"
+        )
+        
+        st.markdown("---")
+        st.markdown('<p style="color: #999; font-size: 0.8em;">© 2026 - Gestión de Empleados</p>', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Mostrar error si la contraseña es incorrecta
+    if st.session_state.get("password_correct") == False:
+        st.error("❌ Contraseña incorrecta")
+    
+    return False
+
+# 🔐 VERIFICAR AUTENTICACIÓN ANTES DE MOSTRAR CUALQUIER COSA
+if not check_password():
+    st.stop()  # Detener ejecución si no está autenticado
 
 # ============================================
 # VERIFICAR SECRETS
@@ -32,62 +117,37 @@ if "GITHUB_REPO" not in st.secrets:
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 GITHUB_REPO = st.secrets["GITHUB_REPO"]
 
-# =========================================
-# INICIALIZACIÓN - ESTADO
+# ============================================
+# INICIALIZACIÓN
 # ============================================
 if 'ultima_actualizacion' not in st.session_state:
     st.session_state.ultima_actualizacion = datetime.now()
     st.session_state.refresh_count = 0
     st.session_state.ultimo_id_agregado = None
     st.session_state.menu_seleccion = "📋 Ver Empleados"
-    # 🔴 ESTA ES LA LÍNEA QUE FALTABA:
-    st.session_state.ultimo_commit = None
-    st.session_state.forzar_recarga = False
-# ============================================
-# FUNCIÓN PRINCIPAL - SIN CDN CACHÉ
-# ============================================
-def obtener_empleados():
-    """Lee empleados usando API de GitHub - SIN CACHÉ CDN"""
-    try:
-        # 🔴 USAR API DIRECTA - SIN CDN
-        g = Github(GITHUB_TOKEN)
-        repo = g.get_repo(GITHUB_REPO)
-        
-        # Obtener el archivo directamente
-        contents = repo.get_contents("datos/empleados_actualizado.json")
-        
-        # Guardar SHA del commit para detectar cambios
-        if st.session_state.ultimo_commit != contents.sha:
-            st.session_state.ultimo_commit = contents.sha
-            print(f"📦 Nuevo commit detectado: {contents.sha[:7]}")
-        
-        # Decodificar y convertir a DataFrame
-        json_content = base64.b64decode(contents.content).decode('utf-8')
-        df = pd.read_json(json_content)
-        
-        return df
-    except Exception as e:
-        st.error(f"❌ Error API: {str(e)}")
-        
-        # FALLBACK: Intentar con RAW + timestamp
-        try:
-            url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/datos/empleados_actualizado.json?t={int(time.time()*1000)}"
-            headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-            response = requests.get(url, headers=headers)
-            if response.status_code == 200:
-                df = pd.read_json(response.text)
-                return df
-        except:
-            pass
-        
-        return pd.DataFrame()
 
 # ============================================
-# FUNCIONES DE ESCRITURA
+# FUNCIONES DE GITHUB - SIN CACHÉ CDN
 # ============================================
-def guardar_solicitud(tipo, datos):
-    """Guarda solicitud en GitHub"""
+def obtener_empleados():
+    """Lee empleados usando RAW + timestamp (NO USA API)"""
     try:
+        url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/datos/empleados_actualizado.json?t={int(time.time()*1000)}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            df = pd.read_json(response.text)
+            return df
+        else:
+            return pd.DataFrame()
+    except Exception as e:
+        return pd.DataFrame()
+
+def guardar_solicitud(tipo, datos):
+    """Guarda solicitud en GitHub - SOLO ESCRITURA USA API"""
+    try:
+        from github import Github
         g = Github(GITHUB_TOKEN)
         repo = g.get_repo(GITHUB_REPO)
         
@@ -122,13 +182,14 @@ def guardar_solicitud(tipo, datos):
                 json_data
             )
         
-        return True, "✅ Solicitud guardada"
+        return True, "✅ Solicitud guardada correctamente"
     except Exception as e:
         return False, f"❌ Error: {str(e)}"
 
 def obtener_solicitudes_pendientes():
-    """Lee solicitudes pendientes usando API"""
+    """Lee solicitudes pendientes"""
     try:
+        from github import Github
         g = Github(GITHUB_TOKEN)
         repo = g.get_repo(GITHUB_REPO)
         try:
@@ -144,13 +205,26 @@ def verificar_id_disponible(df, empleadoId, solicitudes_pendientes):
     """Verifica si un ID está disponible"""
     if df is not None and not df.empty:
         if empleadoId in df['empleadoId'].values:
-            return False, f"❌ El ID {empleadoId} ya existe"
+            return False, f"❌ El ID {empleadoId} ya existe en la base de datos"
     
     for sol in solicitudes_pendientes:
         if sol['tipo'] == 'INSERT' and sol['datos'].get('empleadoId') == empleadoId:
-            return False, f"❌ El ID {empleadoId} ya tiene solicitud pendiente"
+            return False, f"❌ El ID {empleadoId} ya tiene una solicitud pendiente"
     
     return True, "✅ ID disponible"
+
+# ============================================
+# BARRA SUPERIOR - USUARIO AUTENTICADO
+# ============================================
+col1, col2, col3 = st.columns([3,1,1])
+with col1:
+    st.title("👔 SISTEMA DE GESTIÓN DE EMPLEADOS")
+with col3:
+    if st.button("🚪 Cerrar Sesión"):
+        st.session_state.password_correct = False
+        st.rerun()
+
+st.markdown("---")
 
 # ============================================
 # MENÚ LATERAL
@@ -169,9 +243,10 @@ st.sidebar.radio(
 
 menu = st.session_state.menu_seleccion
 st.sidebar.success(f"📁 {GITHUB_REPO}")
+st.sidebar.info("🔐 Sesión activa")
 
 # ============================================
-# AUTO-REFRESH INTELIGENTE
+# AUTO-REFRESH - SOLO EN VER EMPLEADOS
 # ============================================
 if menu == "📋 Ver Empleados":
     ahora = datetime.now()
@@ -180,6 +255,7 @@ if menu == "📋 Ver Empleados":
     col1, col2, col3 = st.columns([1,1,3])
     with col1:
         if st.button("🔄 Recargar", use_container_width=True):
+            st.cache_data.clear()
             st.session_state.ultima_actualizacion = datetime.now()
             st.session_state.refresh_count += 1
             st.rerun()
@@ -191,24 +267,21 @@ if menu == "📋 Ver Empleados":
         else:
             st.warning(f"⏱️ Última actualización hace {delta} segundos")
     
-    # 🔴 AUTO-REFRESH CADA 10 SEGUNDOS (menos agresivo)
-    if delta >= 10:
+    if delta >= 30:
         st.session_state.ultima_actualizacion = ahora
         st.session_state.refresh_count += 1
         st.rerun()
 
 # ============================================
-# 1. VER EMPLEADOS - CON API (SIN CACHÉ)
+# 1. VER EMPLEADOS
 # ============================================
 if menu == "📋 Ver Empleados":
     st.header("📋 Lista de Empleados")
     
-    # 🔴 LEER CON API - RESPUESTA INMEDIATA
     with st.spinner("Cargando datos..."):
         df = obtener_empleados()
     
     if not df.empty:
-        # Métricas
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Total Empleados", len(df))
         col2.metric("Último ID", df['empleadoId'].max())
@@ -216,7 +289,6 @@ if menu == "📋 Ver Empleados":
             col3.metric("Actualización", df['FechaActualizacion'].iloc[0][11:19])
         col4.metric("Cargos distintos", df['Cargo'].nunique())
         
-        # Tabla
         st.dataframe(
             df[['empleadoId', 'Nombre', 'Cargo']].sort_values('empleadoId'),
             use_container_width=True,
@@ -224,15 +296,14 @@ if menu == "📋 Ver Empleados":
             height=400
         )
         
-        # Botón descarga
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
             "📥 Descargar Excel",
             csv,
-            f"empleados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            f"empleados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            use_container_width=True
         )
         
-        # Mensaje de nuevo empleado
         if st.session_state.ultimo_id_agregado:
             if st.session_state.ultimo_id_agregado in df['empleadoId'].values:
                 st.success(f"✅ Nuevo empleado ID {st.session_state.ultimo_id_agregado} agregado")
@@ -282,11 +353,8 @@ elif menu == "➕ Agregar Empleado":
                             st.success(f"✅ Solicitud guardada - ID: {empleadoId}")
                             st.balloons()
                             st.session_state.ultimo_id_agregado = empleadoId
-                            
-                            # 🔴 REDIRIGIR Y FORZAR RECARGA
                             time.sleep(1)
                             st.session_state.menu_seleccion = "📋 Ver Empleados"
-                            st.session_state.ultima_actualizacion = datetime.now()
                             st.rerun()
                         else:
                             st.error(f"❌ {msg}")
@@ -332,7 +400,6 @@ elif menu == "✏️ Editar Empleado":
                                 st.success(f"✅ Solicitud guardada - ID: {empleadoId}")
                                 time.sleep(1)
                                 st.session_state.menu_seleccion = "📋 Ver Empleados"
-                                st.session_state.ultima_actualizacion = datetime.now()
                                 st.rerun()
                             else:
                                 st.error(f"❌ {msg}")
@@ -367,7 +434,7 @@ elif menu == "🗑️ Eliminar Empleado":
             
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("🗑️ Sí", type="primary", use_container_width=True):
+                if st.button("🗑️ Sí, eliminar", type="primary", use_container_width=True):
                     with st.spinner("Guardando solicitud..."):
                         datos = {"empleadoId": int(empleadoId)}
                         success, msg = guardar_solicitud("DELETE", datos)
@@ -376,12 +443,11 @@ elif menu == "🗑️ Eliminar Empleado":
                             st.success(f"✅ Solicitud guardada - ID: {empleadoId}")
                             time.sleep(1)
                             st.session_state.menu_seleccion = "📋 Ver Empleados"
-                            st.session_state.ultima_actualizacion = datetime.now()
                             st.rerun()
                         else:
                             st.error(f"❌ {msg}")
             with col2:
-                if st.button("❌ No", use_container_width=True):
+                if st.button("❌ No, cancelar", use_container_width=True):
                     st.rerun()
     else:
         st.info("No hay empleados")
@@ -392,8 +458,8 @@ elif menu == "🗑️ Eliminar Empleado":
 st.markdown("---")
 st.markdown(f"""
 <div style='text-align: center; color: gray;'>
-    <p>⚡ <strong>SIN CACHÉ CDN</strong> - Usando API de GitHub</p>
-    <p>🔄 Actualización: {datetime.now().strftime('%H:%M:%S')}</p>
+    <p>⚡ <strong>SISTEMA SEGURO</strong> - Acceso restringido</p>
+    <p>🔄 Última recarga: {datetime.now().strftime('%H:%M:%S')}</p>
+    <p>🔐 Sesión activa - Usuario autorizado</p>
 </div>
 """, unsafe_allow_html=True)
-
