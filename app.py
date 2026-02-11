@@ -34,7 +34,7 @@ GITHUB_REPO = st.secrets["GITHUB_REPO"]
 # ============================================
 # FUNCIONES DE GITHUB
 # ============================================
-@st.cache_data(ttl=1)
+@st.cache_data(ttl=2)
 def obtener_empleados():
     """Lee empleados desde GitHub RAW"""
     try:
@@ -116,19 +116,12 @@ def verificar_id_disponible(df, empleadoId, solicitudes_pendientes):
     return True, "✅ ID disponible"
 
 # ============================================
-# AUTO-REFRESH
+# AUTO-REFRESH - SOLO EN VER EMPLEADOS
 # ============================================
 if 'last_refresh' not in st.session_state:
     st.session_state.last_refresh = datetime.now()
     st.session_state.refresh_count = 0
-
-now = datetime.now()
-delta = (now - st.session_state.last_refresh).seconds
-
-if delta >= 2:
-    st.session_state.last_refresh = now
-    st.session_state.refresh_count += 1
-    st.rerun()
+    st.session_state.ultimo_menu = "📋 Ver Empleados"
 
 # ============================================
 # MENÚ LATERAL
@@ -138,7 +131,19 @@ menu = st.sidebar.selectbox(
     "Seleccione una opción",
     ["📋 Ver Empleados", "➕ Agregar Empleado", "✏️ Editar Empleado", "🗑️ Eliminar Empleado"]
 )
-st.sidebar.info(f"🔄 Auto-refresh cada 2 segundos\n#{st.session_state.refresh_count}")
+
+# Control de auto-refresh por menú
+if menu == "📋 Ver Empleados":
+    now = datetime.now()
+    delta = (now - st.session_state.last_refresh).seconds
+    if delta >= 5:
+        st.session_state.last_refresh = now
+        st.session_state.refresh_count += 1
+        st.rerun()
+    st.sidebar.info(f"🔄 Auto-refresh cada 5 segundos\n#{st.session_state.refresh_count}")
+else:
+    st.sidebar.info(f"⏸️ Auto-refresh desactivado - Modo edición")
+
 st.sidebar.success(f"📁 {GITHUB_REPO}")
 
 # ============================================
@@ -147,10 +152,12 @@ st.sidebar.success(f"📁 {GITHUB_REPO}")
 if menu == "📋 Ver Empleados":
     st.header("📋 Lista de Empleados")
     
-    if st.button("🔄 Recargar ahora", use_container_width=True):
-        st.cache_data.clear()
-        st.session_state.last_refresh = datetime.now()
-        st.rerun()
+    col1, col2 = st.columns([1,5])
+    with col1:
+        if st.button("🔄 Recargar ahora", use_container_width=True):
+            st.cache_data.clear()
+            st.session_state.last_refresh = datetime.now()
+            st.rerun()
     
     df = obtener_empleados()
     
@@ -159,7 +166,7 @@ if menu == "📋 Ver Empleados":
         col1.metric("Total Empleados", len(df))
         col2.metric("Último ID", df['empleadoId'].max())
         if 'FechaActualizacion' in df.columns:
-            col3.metric("Actualización", df['FechaActualizacion'].iloc[0][11:19])
+            col3.metric("Actualización SQL", df['FechaActualizacion'].iloc[0][11:19])
         col4.metric("Cargos distintos", df['Cargo'].nunique())
         
         st.dataframe(
@@ -170,12 +177,17 @@ if menu == "📋 Ver Empleados":
         )
         
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Descargar Excel", csv, f"empleados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+        st.download_button(
+            "📥 Descargar Excel",
+            csv,
+            f"empleados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            use_container_width=True
+        )
     else:
         st.warning("No hay empleados registrados")
 
 # ============================================
-# 2. AGREGAR EMPLEADO - CORREGIDO
+# 2. AGREGAR EMPLEADO - SIN AUTO-REFRESH
 # ============================================
 elif menu == "➕ Agregar Empleado":
     st.header("➕ Agregar Nuevo Empleado")
@@ -220,7 +232,7 @@ elif menu == "➕ Agregar Empleado":
             st.rerun()
 
 # ============================================
-# 3. EDITAR EMPLEADO - CORREGIDO
+# 3. EDITAR EMPLEADO - SIN AUTO-REFRESH
 # ============================================
 elif menu == "✏️ Editar Empleado":
     st.header("✏️ Editar Empleado")
@@ -266,7 +278,7 @@ elif menu == "✏️ Editar Empleado":
         st.info("No hay empleados para editar")
 
 # ============================================
-# 4. ELIMINAR EMPLEADO - CORREGIDO
+# 4. ELIMINAR EMPLEADO - SIN AUTO-REFRESH
 # ============================================
 elif menu == "🗑️ Eliminar Empleado":
     st.header("🗑️ Eliminar Empleado")
@@ -310,7 +322,7 @@ elif menu == "🗑️ Eliminar Empleado":
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray;'>
-    <p>⚡ <strong>TIEMPO REAL</strong> - Actualización automática cada 2 segundos</p>
-    <p>✅ Sistema conectado correctamente</p>
+    <p>⚡ <strong>TIEMPO REAL</strong> - Auto-refresh solo en Ver Empleados</p>
+    <p>✅ Modo edición SIN recargas automáticas</p>
 </div>
 """, unsafe_allow_html=True)
