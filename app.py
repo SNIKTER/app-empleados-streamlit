@@ -32,16 +32,17 @@ if "GITHUB_REPO" not in st.secrets:
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 GITHUB_REPO = st.secrets["GITHUB_REPO"]
 
-# ============================================
-# INICIALIZACIÓN
+# =========================================
+# INICIALIZACIÓN - ESTADO
 # ============================================
 if 'ultima_actualizacion' not in st.session_state:
     st.session_state.ultima_actualizacion = datetime.now()
     st.session_state.refresh_count = 0
     st.session_state.ultimo_id_agregado = None
     st.session_state.menu_seleccion = "📋 Ver Empleados"
+    # 🔴 ESTA ES LA LÍNEA QUE FALTABA:
     st.session_state.ultimo_commit = None
-
+    st.session_state.forzar_recarga = False
 # ============================================
 # FUNCIÓN PRINCIPAL - SIN CDN CACHÉ
 # ============================================
@@ -395,3 +396,4 @@ st.markdown(f"""
     <p>🔄 Actualización: {datetime.now().strftime('%H:%M:%S')}</p>
 </div>
 """, unsafe_allow_html=True)
+
