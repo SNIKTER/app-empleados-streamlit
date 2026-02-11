@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 # ============================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN DE PÁGINA
 # ============================================
 st.set_page_config(
     page_title="Sistema Gestión Empleados",
@@ -14,48 +14,61 @@ st.set_page_config(
     layout="wide"
 )
 
+st.title("👔 SISTEMA DE GESTIÓN DE EMPLEADOS")
+st.markdown("---")
+
 # ============================================
-# FUNCIONES DE GITHUB (ESCRITURA)
+# FUNCIONES DE GITHUB
 # ============================================
 
-def guardar_solicitud_en_github(tipo, datos):
-    """
-    Guarda una solicitud de INSERT/UPDATE/DELETE en GitHub
-    """
+@st.cache_data(ttl=300)
+def obtener_empleados():
+    """Lee empleados desde GitHub (datos actualizados cada 5 min)"""
     try:
-        # Conectar a GitHub
+        g = Github(st.secrets["GITHUB_TOKEN"])
+        repo = g.get_repo(st.secrets["GITHUB_REPO"])
+        contents = repo.get_contents("datos/empleados_actualizado.json")
+        df = pd.read_json(base64.b64decode(contents.content).decode('utf-8'))
+        return df
+    except Exception as e:
+        st.error(f"Error cargando datos: {e}")
+        return pd.DataFrame()
+
+def guardar_solicitud(tipo, datos):
+    """Guarda una solicitud en GitHub para ser procesada localmente"""
+    try:
         g = Github(st.secrets["GITHUB_TOKEN"])
         repo = g.get_repo(st.secrets["GITHUB_REPO"])
         
-        # Leer solicitudes pendientes
+        # Leer solicitudes existentes
         try:
             contents = repo.get_contents("solicitudes/solicitudes_pendientes.json")
             solicitudes = json.loads(base64.b64decode(contents.content).decode('utf-8'))
         except:
             solicitudes = []
         
-        # Agregar nueva solicitud
-        nueva_solicitud = {
+        # Crear nueva solicitud
+        nueva = {
             "id": len(solicitudes) + 1,
             "tipo": tipo,
             "datos": datos,
             "fecha_solicitud": datetime.now().isoformat(),
             "estado": "pendiente"
         }
-        solicitudes.append(nueva_solicitud)
+        solicitudes.append(nueva)
         
         # Guardar en GitHub
-        try:
+        if 'contents' in locals():
             repo.update_file(
                 "solicitudes/solicitudes_pendientes.json",
-                f"Nueva solicitud {tipo} - {datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                f"{tipo} - {datos.get('Nombre', datos.get('empleadoId'))}",
                 json.dumps(solicitudes, indent=2),
                 contents.sha
             )
-        except:
+        else:
             repo.create_file(
                 "solicitudes/solicitudes_pendientes.json",
-                f"Creación archivo solicitudes",
+                "Inicialización",
                 json.dumps(solicitudes, indent=2)
             )
         
@@ -63,24 +76,9 @@ def guardar_solicitud_en_github(tipo, datos):
     except Exception as e:
         return False, str(e)
 
-def obtener_empleados():
-    """Lee empleados desde GitHub (datos actualizados)"""
-    try:
-        g = Github(st.secrets["GITHUB_TOKEN"])
-        repo = g.get_repo(st.secrets["GITHUB_REPO"])
-        contents = repo.get_contents("datos/empleados_actualizado.json")
-        df = pd.read_json(base64.b64decode(contents.content).decode('utf-8'))
-        return df
-    except:
-        return pd.DataFrame()
-
 # ============================================
-# INTERFAZ DE USUARIO
+# MENÚ LATERAL
 # ============================================
-st.title("👔 SISTEMA DE GESTIÓN DE EMPLEADOS")
-st.markdown("---")
-
-# MENÚ
 menu = st.sidebar.selectbox(
     "Menú Principal",
     ["📋 Ver Empleados", "➕ Agregar Empleado", "✏️ Editar Empleado", "🗑️ Eliminar Empleado"]
@@ -95,16 +93,27 @@ if menu == "📋 Ver Empleados":
     df = obtener_empleados()
     
     if not df.empty:
-        st.metric("Total Empleados", len(df))
-        st.dataframe(df[['empleadoId', 'Nombre', 'Cargo']], use_container_width=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Empleados", len(df))
+        
+        st.dataframe(
+            df[['empleadoId', 'Nombre', 'Cargo']],
+            use_container_width=True,
+            hide_index=True
+        )
         
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Descargar Excel", data=csv, file_name=f"empleados_{datetime.now().strftime('%Y%m%d')}.csv")
+        st.download_button(
+            "📥 Descargar Excel",
+            csv,
+            f"empleados_{datetime.now().strftime('%Y%m%d')}.csv"
+        )
     else:
         st.info("No hay empleados registrados")
 
 # ============================================
-# 2. AGREGAR EMPLEADO (GUARDA EN GITHUB)
+# 2. AGREGAR EMPLEADO
 # ============================================
 elif menu == "➕ Agregar Empleado":
     st.header("➕ Agregar Nuevo Empleado")
@@ -115,20 +124,16 @@ elif menu == "➕ Agregar Empleado":
         
         if st.form_submit_button("💾 Guardar", type="primary"):
             if nombre and cargo:
-                with st.spinner("Guardando solicitud en GitHub..."):
-                    datos = {
-                        "Nombre": nombre,
-                        "Cargo": cargo,
-                        "fecha": datetime.now().isoformat()
-                    }
-                    success, message = guardar_solicitud_en_github("INSERT", datos)
+                with st.spinner("Guardando solicitud..."):
+                    datos = {"Nombre": nombre, "Cargo": cargo}
+                    success, msg = guardar_solicitud("INSERT", datos)
                     
                     if success:
-                        st.success("✅ Solicitud guardada. Se procesará en segundos.")
-                        st.info("🔄 El sistema actualizará automáticamente en 1-2 minutos.")
+                        st.success("✅ Solicitud guardada. El empleado se agregará en segundos.")
+                        st.info("🔄 Actualiza la lista en 1-2 minutos para ver los cambios.")
                         st.balloons()
                     else:
-                        st.error(f"❌ Error: {message}")
+                        st.error(f"❌ Error: {msg}")
             else:
                 st.warning("⚠️ Todos los campos son obligatorios")
 
@@ -143,30 +148,29 @@ elif menu == "✏️ Editar Empleado":
     if not df.empty:
         empleado_id = st.selectbox(
             "Selecciona empleado",
-            options=df['empleadoId'],
-            format_func=lambda x: f"{df[df['empleadoId']==x]['Nombre'].values[0]}"
+            df['empleadoId'],
+            format_func=lambda x: f"{df[df['empleadoId']==x]['Nombre'].values[0]} - {df[df['empleadoId']==x]['Cargo'].values[0]}"
         )
         
         if empleado_id:
-            empleado = df[df['empleadoId'] == empleado_id].iloc[0]
+            emp = df[df['empleadoId'] == empleado_id].iloc[0]
             
             with st.form("form_editar"):
-                nuevo_nombre = st.text_input("Nombre", value=empleado['Nombre'])
-                nuevo_cargo = st.text_input("Cargo", value=empleado['Cargo'])
+                nombre = st.text_input("Nombre", value=emp['Nombre'])
+                cargo = st.text_input("Cargo", value=emp['Cargo'])
                 
                 if st.form_submit_button("🔄 Actualizar", type="primary"):
                     datos = {
                         "empleadoId": int(empleado_id),
-                        "Nombre": nuevo_nombre,
-                        "Cargo": nuevo_cargo
+                        "Nombre": nombre,
+                        "Cargo": cargo
                     }
-                    success, message = guardar_solicitud_en_github("UPDATE", datos)
+                    success, msg = guardar_solicitud("UPDATE", datos)
                     
                     if success:
                         st.success("✅ Solicitud de actualización guardada")
-                        st.info("🔄 Se procesará en segundos")
                     else:
-                        st.error(f"❌ Error: {message}")
+                        st.error(f"❌ Error: {msg}")
     else:
         st.info("No hay empleados para editar")
 
@@ -181,8 +185,8 @@ elif menu == "🗑️ Eliminar Empleado":
     if not df.empty:
         empleado_id = st.selectbox(
             "Selecciona empleado",
-            options=df['empleadoId'],
-            format_func=lambda x: f"{df[df['empleadoId']==x]['Nombre'].values[0]}"
+            df['empleadoId'],
+            format_func=lambda x: df[df['empleadoId']==x]['Nombre'].values[0]
         )
         
         if empleado_id:
@@ -191,12 +195,21 @@ elif menu == "🗑️ Eliminar Empleado":
             
             if st.button("🗑️ Sí, eliminar", type="primary"):
                 datos = {"empleadoId": int(empleado_id)}
-                success, message = guardar_solicitud_en_github("DELETE", datos)
+                success, msg = guardar_solicitud("DELETE", datos)
                 
                 if success:
                     st.success("✅ Solicitud de eliminación guardada")
-                    st.info("🔄 Se procesará en segundos")
                 else:
-                    st.error(f"❌ Error: {message}")
+                    st.error(f"❌ Error: {msg}")
     else:
         st.info("No hay empleados para eliminar")
+
+# ============================================
+# PIE DE PÁGINA
+# ============================================
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: gray;'>
+    <p>✅ Sistema en tiempo real - Los cambios se procesan en 1-2 minutos</p>
+</div>
+""", unsafe_allow_html=True)
