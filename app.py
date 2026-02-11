@@ -40,6 +40,7 @@ if 'ultima_actualizacion' not in st.session_state:
     st.session_state.refresh_count = 0
     st.session_state.ultimo_id_agregado = None
     st.session_state.forzar_recarga = False
+    st.session_state.menu_seleccion = "📋 Ver Empleados"  # 🔴 CAMBIADO
 
 # ============================================
 # FUNCIONES DE GITHUB - SIN CACHÉ
@@ -132,15 +133,24 @@ def verificar_id_disponible(df, empleadoId, solicitudes_pendientes):
     return True, "✅ ID disponible"
 
 # ============================================
-# MENÚ LATERAL
+# MENÚ LATERAL - CORREGIDO
 # ============================================
 st.sidebar.title("📋 MENÚ PRINCIPAL")
-menu = st.sidebar.radio(
+
+# Función para cambiar de menú
+def cambiar_menu():
+    st.session_state.menu_seleccion = st.session_state._menu_widget
+
+# Widget del menú
+menu_widget = st.sidebar.radio(
     "Seleccione una opción",
     ["📋 Ver Empleados", "➕ Agregar Empleado", "✏️ Editar Empleado", "🗑️ Eliminar Empleado"],
-    key="menu_principal"
+    key="_menu_widget",
+    on_change=cambiar_menu
 )
 
+# Usar la variable de session_state para el menú actual
+menu = st.session_state.menu_seleccion
 st.sidebar.success(f"📁 {GITHUB_REPO}")
 
 # ============================================
@@ -270,7 +280,7 @@ elif menu == "➕ Agregar Empleado":
                             
                             # 🔴 ESPERAR 1 SEGUNDO Y REDIRIGIR
                             time.sleep(1)
-                            st.session_state.menu_principal = "📋 Ver Empleados"
+                            st.session_state.menu_seleccion = "📋 Ver Empleados"
                             st.rerun()
                         else:
                             st.error(f"❌ {msg}")
@@ -322,7 +332,7 @@ elif menu == "✏️ Editar Empleado":
                                 
                                 # 🔴 ESPERAR Y REDIRIGIR
                                 time.sleep(1)
-                                st.session_state.menu_principal = "📋 Ver Empleados"
+                                st.session_state.menu_seleccion = "📋 Ver Empleados"
                                 st.rerun()
                             else:
                                 st.error(f"❌ {msg}")
@@ -371,7 +381,7 @@ elif menu == "🗑️ Eliminar Empleado":
                             
                             # 🔴 ESPERAR Y REDIRIGIR
                             time.sleep(1)
-                            st.session_state.menu_principal = "📋 Ver Empleados"
+                            st.session_state.menu_seleccion = "📋 Ver Empleados"
                             st.rerun()
                         else:
                             st.error(f"❌ {msg}")
