@@ -5,9 +5,10 @@ import base64
 import json
 from datetime import datetime
 import requests
+import time
 
 # ============================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN - SIN CACHÉ
 # ============================================
 st.set_page_config(
     page_title="Sistema Gestión Empleados",
@@ -32,20 +33,35 @@ GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 GITHUB_REPO = st.secrets["GITHUB_REPO"]
 
 # ============================================
-# FUNCIONES DE GITHUB
+# INICIALIZACIÓN - ESTADO
 # ============================================
-@st.cache_data(ttl=2)
+if 'ultima_actualizacion' not in st.session_state:
+    st.session_state.ultima_actualizacion = datetime.now()
+    st.session_state.refresh_count = 0
+    st.session_state.ultimo_id_agregado = None
+    st.session_state.forzar_recarga = False
+
+# ============================================
+# FUNCIONES DE GITHUB - SIN CACHÉ
+# ============================================
 def obtener_empleados():
-    """Lee empleados desde GitHub RAW"""
+    """Lee empleados desde GitHub RAW - SIN CACHÉ"""
     try:
         url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/datos/empleados_actualizado.json"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        
+        # 🔴 AGREGAR TIMESTAMP PARA EVITAR CACHÉ
+        url = f"{url}?t={int(time.time()*1000)}"
+        
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             df = pd.read_json(response.text)
             return df
-        return pd.DataFrame()
-    except:
+        else:
+            st.warning(f"Error {response.status_code} al cargar datos")
+            return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error cargando datos: {str(e)}")
         return pd.DataFrame()
 
 def guardar_solicitud(tipo, datos):
@@ -116,59 +132,72 @@ def verificar_id_disponible(df, empleadoId, solicitudes_pendientes):
     return True, "✅ ID disponible"
 
 # ============================================
-# AUTO-REFRESH - SOLO EN VER EMPLEADOS
-# ============================================
-if 'last_refresh' not in st.session_state:
-    st.session_state.last_refresh = datetime.now()
-    st.session_state.refresh_count = 0
-    st.session_state.ultimo_menu = "📋 Ver Empleados"
-
-# ============================================
 # MENÚ LATERAL
 # ============================================
 st.sidebar.title("📋 MENÚ PRINCIPAL")
-menu = st.sidebar.selectbox(
+menu = st.sidebar.radio(
     "Seleccione una opción",
-    ["📋 Ver Empleados", "➕ Agregar Empleado", "✏️ Editar Empleado", "🗑️ Eliminar Empleado"]
+    ["📋 Ver Empleados", "➕ Agregar Empleado", "✏️ Editar Empleado", "🗑️ Eliminar Empleado"],
+    key="menu_principal"
 )
-
-# Control de auto-refresh por menú
-if menu == "📋 Ver Empleados":
-    now = datetime.now()
-    delta = (now - st.session_state.last_refresh).seconds
-    if delta >= 5:
-        st.session_state.last_refresh = now
-        st.session_state.refresh_count += 1
-        st.rerun()
-    st.sidebar.info(f"🔄 Auto-refresh cada 5 segundos\n#{st.session_state.refresh_count}")
-else:
-    st.sidebar.info(f"⏸️ Auto-refresh desactivado - Modo edición")
 
 st.sidebar.success(f"📁 {GITHUB_REPO}")
 
 # ============================================
-# 1. VER EMPLEADOS
+# AUTO-REFRESH - SOLO EN VER EMPLEADOS
+# ============================================
+if menu == "📋 Ver Empleados":
+    # Contador de tiempo
+    ahora = datetime.now()
+    delta = (ahora - st.session_state.ultima_actualizacion).seconds
+    
+    # Botones de control
+    col1, col2, col3 = st.columns([1,1,3])
+    with col1:
+        if st.button("🔄 Recargar", use_container_width=True):
+            st.session_state.ultima_actualizacion = datetime.now()
+            st.session_state.refresh_count += 1
+            st.rerun()
+    with col2:
+        st.info(f"🔄 #{st.session_state.refresh_count}")
+    with col3:
+        if delta < 5:
+            st.success(f"⏱️ Datos actualizados hace {delta} segundos")
+        else:
+            st.warning(f"⏱️ Última actualización hace {delta} segundos")
+    
+    # Auto-refresh cada 3 segundos
+    if delta >= 3:
+        st.session_state.ultima_actualizacion = ahora
+        st.session_state.refresh_count += 1
+        st.rerun()
+
+# ============================================
+# 1. VER EMPLEADOS - SIN CACHÉ
 # ============================================
 if menu == "📋 Ver Empleados":
     st.header("📋 Lista de Empleados")
     
-    col1, col2 = st.columns([1,5])
-    with col1:
-        if st.button("🔄 Recargar ahora", use_container_width=True):
-            st.cache_data.clear()
-            st.session_state.last_refresh = datetime.now()
-            st.rerun()
-    
-    df = obtener_empleados()
+    # 🔴 LEER DATOS FRESCOS - SIEMPRE
+    with st.spinner("Cargando datos en tiempo real..."):
+        df = obtener_empleados()
     
     if not df.empty:
+        # Métricas
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Empleados", len(df))
-        col2.metric("Último ID", df['empleadoId'].max())
-        if 'FechaActualizacion' in df.columns:
-            col3.metric("Actualización SQL", df['FechaActualizacion'].iloc[0][11:19])
-        col4.metric("Cargos distintos", df['Cargo'].nunique())
+        with col1:
+            st.metric("Total Empleados", len(df), delta=None)
+        with col2:
+            ultimo_id = df['empleadoId'].max()
+            st.metric("Último ID", ultimo_id)
+        with col3:
+            if 'FechaActualizacion' in df.columns:
+                hora_sql = df['FechaActualizacion'].iloc[0][11:19]
+                st.metric("Actualización SQL", hora_sql)
+        with col4:
+            st.metric("Cargos distintos", df['Cargo'].nunique())
         
+        # Tabla de empleados
         st.dataframe(
             df[['empleadoId', 'Nombre', 'Cargo']].sort_values('empleadoId'),
             use_container_width=True,
@@ -176,6 +205,7 @@ if menu == "📋 Ver Empleados":
             height=400
         )
         
+        # Botón descarga
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
             "📥 Descargar Excel",
@@ -183,15 +213,24 @@ if menu == "📋 Ver Empleados":
             f"empleados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             use_container_width=True
         )
+        
+        # Mostrar mensaje si hay nuevo empleado
+        if st.session_state.ultimo_id_agregado:
+            if st.session_state.ultimo_id_agregado in df['empleadoId'].values:
+                st.success(f"✅ Nuevo empleado ID {st.session_state.ultimo_id_agregado} agregado exitosamente")
+                st.session_state.ultimo_id_agregado = None
+            else:
+                st.info(f"⏳ Procesando empleado ID {st.session_state.ultimo_id_agregado}...")
     else:
         st.warning("No hay empleados registrados")
 
 # ============================================
-# 2. AGREGAR EMPLEADO - SIN AUTO-REFRESH
+# 2. AGREGAR EMPLEADO
 # ============================================
 elif menu == "➕ Agregar Empleado":
     st.header("➕ Agregar Nuevo Empleado")
     
+    # Cargar datos actuales para validación
     df = obtener_empleados()
     solicitudes_pendientes = obtener_solicitudes_pendientes()
     
@@ -225,14 +264,24 @@ elif menu == "➕ Agregar Empleado":
                         if success:
                             st.success(f"✅ Solicitud guardada - ID: {empleadoId}")
                             st.balloons()
+                            
+                            # 🔴 GUARDAR EL ID PARA MOSTRAR DESPUÉS
+                            st.session_state.ultimo_id_agregado = empleadoId
+                            
+                            # 🔴 ESPERAR 1 SEGUNDO Y REDIRIGIR
+                            time.sleep(1)
+                            st.session_state.menu_principal = "📋 Ver Empleados"
+                            st.rerun()
                         else:
                             st.error(f"❌ {msg}")
         
         if cancel:
             st.rerun()
+    
+    st.info("⏱️ Después de guardar, será redirigido automáticamente a Ver Empleados")
 
 # ============================================
-# 3. EDITAR EMPLEADO - SIN AUTO-REFRESH
+# 3. EDITAR EMPLEADO
 # ============================================
 elif menu == "✏️ Editar Empleado":
     st.header("✏️ Editar Empleado")
@@ -240,7 +289,10 @@ elif menu == "✏️ Editar Empleado":
     df = obtener_empleados()
     
     if not df.empty:
-        empleadoId = st.selectbox("Seleccione ID del empleado a editar", sorted(df['empleadoId'].tolist()))
+        empleadoId = st.selectbox(
+            "Seleccione ID del empleado a editar",
+            sorted(df['empleadoId'].tolist())
+        )
         
         if empleadoId:
             empleado = df[df['empleadoId'] == empleadoId].iloc[0]
@@ -267,6 +319,11 @@ elif menu == "✏️ Editar Empleado":
                             
                             if success:
                                 st.success(f"✅ Solicitud de actualización guardada - ID: {empleadoId}")
+                                
+                                # 🔴 ESPERAR Y REDIRIGIR
+                                time.sleep(1)
+                                st.session_state.menu_principal = "📋 Ver Empleados"
+                                st.rerun()
                             else:
                                 st.error(f"❌ {msg}")
                     else:
@@ -278,7 +335,7 @@ elif menu == "✏️ Editar Empleado":
         st.info("No hay empleados para editar")
 
 # ============================================
-# 4. ELIMINAR EMPLEADO - SIN AUTO-REFRESH
+# 4. ELIMINAR EMPLEADO
 # ============================================
 elif menu == "🗑️ Eliminar Empleado":
     st.header("🗑️ Eliminar Empleado")
@@ -286,7 +343,10 @@ elif menu == "🗑️ Eliminar Empleado":
     df = obtener_empleados()
     
     if not df.empty:
-        empleadoId = st.selectbox("Seleccione ID del empleado a eliminar", sorted(df['empleadoId'].tolist()))
+        empleadoId = st.selectbox(
+            "Seleccione ID del empleado a eliminar",
+            sorted(df['empleadoId'].tolist())
+        )
         
         if empleadoId:
             empleado = df[df['empleadoId'] == empleadoId].iloc[0]
@@ -308,6 +368,11 @@ elif menu == "🗑️ Eliminar Empleado":
                         
                         if success:
                             st.success(f"✅ Solicitud de eliminación guardada - ID: {empleadoId}")
+                            
+                            # 🔴 ESPERAR Y REDIRIGIR
+                            time.sleep(1)
+                            st.session_state.menu_principal = "📋 Ver Empleados"
+                            st.rerun()
                         else:
                             st.error(f"❌ {msg}")
             with col2:
@@ -320,9 +385,10 @@ elif menu == "🗑️ Eliminar Empleado":
 # PIE DE PÁGINA
 # ============================================
 st.markdown("---")
-st.markdown("""
+st.markdown(f"""
 <div style='text-align: center; color: gray;'>
-    <p>⚡ <strong>TIEMPO REAL</strong> - Auto-refresh solo en Ver Empleados</p>
-    <p>✅ Modo edición SIN recargas automáticas</p>
+    <p>⚡ <strong>TIEMPO REAL</strong> - Auto-refresh cada 3 segundos</p>
+    <p>🔄 Última recarga: {datetime.now().strftime('%H:%M:%S')}</p>
+    <p>📁 Repositorio: {GITHUB_REPO}</p>
 </div>
 """, unsafe_allow_html=True)
