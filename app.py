@@ -19,10 +19,10 @@ st.set_page_config(
 )
 
 # ============================================
-# 🔐 LOGIN CORPORATIVO PROFESIONAL - CORREGIDO
+# 🔐 LOGIN SENCILLO PROFESIONAL
 # ============================================
 def check_password():
-    """Diseño corporativo profesional - limpio y elegante"""
+    """Login sencillo, limpio y profesional"""
     
     if "PASSWORD" not in st.secrets:
         st.error("❌ Error: PASSWORD no configurado en Secrets")
@@ -38,312 +38,110 @@ def check_password():
     if st.session_state.get("password_correct", False):
         return True
     
-    # CSS Corporativo Profesional
+    # CSS minimalista profesional
     st.markdown("""
     <style>
-        /* RESET Y BASE */
+        /* Fondo limpio */
         .stApp {
-            background-color: #ffffff;
+            background-color: #f8fafc;
         }
         
-        /* Eliminar padding y márgenes por defecto */
-        .main > div {
-            padding: 0 !important;
-        }
-        
-        /* Ocultar elementos por defecto */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        
-        /* Contenedor principal */
-        .login-wrapper {
+        /* Contenedor centrado */
+        .login-container {
             display: flex;
-            min-height: 100vh;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             width: 100%;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 999999;
-            background: white;
         }
         
-        /* Panel izquierdo - Branding */
-        .brand-panel {
-            flex: 1;
-            background: linear-gradient(165deg, #0a1e3c 0%, #0b2c4a 100%);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 40px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .brand-panel::before {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="none"/><path d="M0 0 L100 100 M100 0 L0 100" stroke="rgba(255,255,255,0.03)" stroke-width="1"/></svg>');
-            opacity: 0.4;
-        }
-        
-        .brand-content {
-            position: relative;
-            z-index: 2;
-            max-width: 400px;
-            color: white;
-        }
-        
-        .brand-icon {
-            width: 64px;
-            height: 64px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 32px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .brand-title {
-            font-size: 32px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            letter-spacing: -0.5px;
-            line-height: 1.2;
-        }
-        
-        .brand-subtitle {
-            font-size: 16px;
-            opacity: 0.8;
-            margin-bottom: 48px;
-            line-height: 1.6;
-        }
-        
-        .brand-feature {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-            font-size: 15px;
-            opacity: 0.9;
-        }
-        
-        .brand-feature svg {
-            flex-shrink: 0;
-        }
-        
-        /* Panel derecho - Login */
-        .login-panel {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 40px;
-            background-color: white;
-        }
-        
+        /* Tarjeta blanca */
         .login-card {
+            background: white;
+            padding: 48px 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
             width: 100%;
-            max-width: 360px;
+            max-width: 400px;
+            border: 1px solid #f1f5f9;
         }
         
-        .login-header {
-            margin-bottom: 40px;
-        }
-        
-        .login-header h2 {
-            font-size: 24px;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 8px;
-            letter-spacing: -0.3px;
-        }
-        
-        .login-header p {
-            font-size: 14px;
-            color: #64748b;
-        }
-        
-        /* Input personalizado */
-        .stTextInput > div {
+        /* Logo o ícono */
+        .login-icon {
+            width: 48px;
+            height: 48px;
+            background: #0a1e3c;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             margin-bottom: 24px;
         }
         
-        .stTextInput > div > div {
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            transition: all 0.2s;
+        /* Título */
+        .login-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #0a1e3c;
+            margin-bottom: 8px;
         }
         
-        .stTextInput > div > div:hover {
-            border-color: #94a3b8;
-        }
-        
-        .stTextInput > div > div:focus-within {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
-        }
-        
-        .stTextInput input {
-            padding: 12px 16px !important;
-            font-size: 15px !important;
-        }
-        
-        /* Botón */
-        .stButton > button {
-            background: #0a1e3c;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 20px;
-            font-size: 15px;
-            font-weight: 500;
-            width: 100%;
-            transition: all 0.2s;
-            margin-top: 8px;
-        }
-        
-        .stButton > button:hover {
-            background: #0b2c4a;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(10,30,60,0.15);
-        }
-        
-        /* Mensaje de error */
-        .stAlert {
-            border-radius: 8px;
-            border-left: 4px solid #dc2626;
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999999;
-            width: 400px;
+        /* Subtítulo */
+        .login-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 32px;
         }
         
         /* Footer */
         .login-footer {
             margin-top: 48px;
             text-align: center;
+            font-size: 12px;
             color: #94a3b8;
-            font-size: 13px;
-        }
-        
-        .login-footer span {
-            color: #0a1e3c;
-            font-weight: 500;
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .login-wrapper {
-                flex-direction: column;
-                position: relative;
-            }
-            
-            .brand-panel {
-                padding: 60px 24px;
-            }
-            
-            .brand-content {
-                text-align: center;
-            }
-            
-            .brand-icon {
-                margin: 0 auto 32px auto;
-            }
-            
-            .brand-feature {
-                justify-content: center;
-            }
-            
-            .stAlert {
-                width: 90%;
-                left: 5%;
-                right: 5%;
-            }
+            border-top: 1px solid #f1f5f9;
+            padding-top: 24px;
         }
     </style>
     
-    <div class="login-wrapper">
-        <!-- Panel Izquierdo - Branding -->
-        <div class="brand-panel">
-            <div class="brand-content">
-                <div class="brand-icon">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
-                        <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12Z"/>
-                        <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21"/>
-                    </svg>
-                </div>
-                <div class="brand-title">Sistema de Gestión<br>de Empleados</div>
-                <div class="brand-subtitle">Plataforma integral para la administración del talento humano</div>
-                
-                <div class="brand-feature">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                        <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2"/>
-                    </svg>
-                    <span>Gestión en tiempo real</span>
-                </div>
-                <div class="brand-feature">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                        <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2"/>
-                    </svg>
-                    <span>Actualización automática</span>
-                </div>
-                <div class="brand-feature">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                        <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2"/>
-                    </svg>
-                    <span>Acceso seguro y controlado</span>
-                </div>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M20 21V19C20 16.8 18.2 15 16 15H8C5.8 15 4 16.8 4 19V21"/>
+                    <circle cx="12" cy="8" r="4"/>
+                </svg>
             </div>
-        </div>
-        
-        <!-- Panel Derecho - Login -->
-        <div class="login-panel">
-            <div class="login-card">
-                <div class="login-header">
-                    <h2>Acceso al sistema</h2>
-                    <p>Ingrese sus credenciales para continuar</p>
-                </div>
+            <div class="login-title">Acceso al sistema</div>
+            <div class="login-subtitle">Ingrese su contraseña para continuar</div>
     """, unsafe_allow_html=True)
     
-    # Campo de contraseña - ESTO DEBE ESTAR FUERA DEL st.markdown
+    # Input de contraseña (nativo Streamlit)
     password = st.text_input(
-        "Contraseña de acceso",
+        "Contraseña",
         type="password",
         key="password",
         placeholder="••••••••",
         label_visibility="collapsed"
     )
     
-    # Botón de acceso - Streamlit nativo
-    if st.button("Iniciar sesión", type="primary", use_container_width=True):
+    # Botón de acceso (nativo Streamlit)
+    if st.button("Ingresar", use_container_width=True):
         password_entered()
     
     # Footer
     st.markdown("""
-                <div class="login-footer">
-                    <p>© 2026 FINANZAUTO S.A. BIC</p>
-                    <p style="margin-top: 8px;">Todos los derechos reservados · <span>v2.0.1</span></p>
-                </div>
+            <div class="login-footer">
+                FINANZAUTO S.A. BIC · Gestión de Empleados
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
     if st.session_state.get("password_correct") == False:
-        st.error("❌ La contraseña ingresada no es correcta")
+        st.error("❌ Contraseña incorrecta")
     
     return False
-
 # ============================================
 # 🔐 VERIFICAR AUTENTICACIÓN
 # ============================================
@@ -806,4 +604,5 @@ elif menu == "🗑️ Eliminar Empleado":
                     st.rerun()
     else:
         st.info("No hay empleados")
+
 
