@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 # ============================================
-# CONFIGURACIÓN DE PÁGINA
+# CONFIGURACIÓN
 # ============================================
 st.set_page_config(
     page_title="Sistema Gestión Empleados",
@@ -18,24 +18,22 @@ st.title("👔 SISTEMA DE GESTIÓN DE EMPLEADOS")
 st.markdown("---")
 
 # ============================================
-# FUNCIONES DE GITHUB
+# FUNCIONES GITHUB
 # ============================================
-
 @st.cache_data(ttl=300)
 def obtener_empleados():
-    """Lee empleados desde GitHub (datos actualizados cada 5 min)"""
+    """Lee empleados desde GitHub"""
     try:
         g = Github(st.secrets["GITHUB_TOKEN"])
         repo = g.get_repo(st.secrets["GITHUB_REPO"])
         contents = repo.get_contents("datos/empleados_actualizado.json")
         df = pd.read_json(base64.b64decode(contents.content).decode('utf-8'))
         return df
-    except Exception as e:
-        st.error(f"Error cargando datos: {e}")
+    except:
         return pd.DataFrame()
 
 def guardar_solicitud(tipo, datos):
-    """Guarda una solicitud en GitHub para ser procesada localmente"""
+    """Guarda solicitud en GitHub"""
     try:
         g = Github(st.secrets["GITHUB_TOKEN"])
         repo = g.get_repo(st.secrets["GITHUB_REPO"])
@@ -61,7 +59,7 @@ def guardar_solicitud(tipo, datos):
         if 'contents' in locals():
             repo.update_file(
                 "solicitudes/solicitudes_pendientes.json",
-                f"{tipo} - {datos.get('Nombre', datos.get('empleadoId'))}",
+                f"{tipo} - {datos.get('empleadoId', datos.get('Nombre'))}",
                 json.dumps(solicitudes, indent=2),
                 contents.sha
             )
@@ -77,7 +75,16 @@ def guardar_solicitud(tipo, datos):
         return False, str(e)
 
 # ============================================
-# MENÚ LATERAL
+# VERIFICAR ID DUPLICADO
+# ============================================
+def verificar_id_disponible(df, empleadoId):
+    """Verifica si un ID ya existe en la tabla"""
+    if df.empty:
+        return True
+    return empleadoId not in df['empleadoId'].values
+
+# ============================================
+# MENÚ
 # ============================================
 menu = st.sidebar.selectbox(
     "Menú Principal",
@@ -96,9 +103,11 @@ if menu == "📋 Ver Empleados":
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Total Empleados", len(df))
+        with col2:
+            st.metric("Último ID", df['empleadoId'].max())
         
         st.dataframe(
-            df[['empleadoId', 'Nombre', 'Cargo']],
+            df[['empleadoId', 'Nombre', 'Cargo']].sort_values('empleadoId'),
             use_container_width=True,
             hide_index=True
         )
@@ -113,27 +122,42 @@ if menu == "📋 Ver Empleados":
         st.info("No hay empleados registrados")
 
 # ============================================
-# 2. AGREGAR EMPLEADO
+# 2. AGREGAR EMPLEADO (CON VALIDACIÓN DE ID)
 # ============================================
 elif menu == "➕ Agregar Empleado":
     st.header("➕ Agregar Nuevo Empleado")
     
+    df = obtener_empleados()
+    
     with st.form("form_agregar", clear_on_submit=True):
-        nombre = st.text_input("Nombre Completo *")
+        col1, col2 = st.columns(2)
+        with col1:
+            empleadoId = st.number_input("ID del Empleado *", min_value=1, step=1)
+        with col2:
+            nombre = st.text_input("Nombre Completo *")
+        
         cargo = st.text_input("Cargo *")
         
         if st.form_submit_button("💾 Guardar", type="primary"):
-            if nombre and cargo:
-                with st.spinner("Guardando solicitud..."):
-                    datos = {"Nombre": nombre, "Cargo": cargo}
-                    success, msg = guardar_solicitud("INSERT", datos)
-                    
-                    if success:
-                        st.success("✅ Solicitud guardada. El empleado se agregará en segundos.")
-                        st.info("🔄 Actualiza la lista en 1-2 minutos para ver los cambios.")
-                        st.balloons()
-                    else:
-                        st.error(f"❌ Error: {msg}")
+            if empleadoId and nombre and cargo:
+                # VALIDAR ID DUPLICADO
+                if not verificar_id_disponible(df, empleadoId):
+                    st.error(f"❌ El ID {empleadoId} ya existe en la base de datos")
+                    st.info("💡 Por favor, usa un ID diferente")
+                else:
+                    with st.spinner("Guardando solicitud..."):
+                        datos = {
+                            "empleadoId": int(empleadoId),
+                            "Nombre": nombre,
+                            "Cargo": cargo
+                        }
+                        success, msg = guardar_solicitud("INSERT", datos)
+                        
+                        if success:
+                            st.success(f"✅ Solicitud guardada. Empleado ID: {empleadoId}")
+                            st.balloons()
+                        else:
+                            st.error(f"❌ Error: {msg}")
             else:
                 st.warning("⚠️ Todos los campos son obligatorios")
 
@@ -146,14 +170,13 @@ elif menu == "✏️ Editar Empleado":
     df = obtener_empleados()
     
     if not df.empty:
-        empleado_id = st.selectbox(
-            "Selecciona empleado",
-            df['empleadoId'],
-            format_func=lambda x: f"{df[df['empleadoId']==x]['Nombre'].values[0]} - {df[df['empleadoId']==x]['Cargo'].values[0]}"
+        empleadoId = st.selectbox(
+            "Selecciona ID del empleado",
+            sorted(df['empleadoId'].tolist())
         )
         
-        if empleado_id:
-            emp = df[df['empleadoId'] == empleado_id].iloc[0]
+        if empleadoId:
+            emp = df[df['empleadoId'] == empleadoId].iloc[0]
             
             with st.form("form_editar"):
                 nombre = st.text_input("Nombre", value=emp['Nombre'])
@@ -161,14 +184,14 @@ elif menu == "✏️ Editar Empleado":
                 
                 if st.form_submit_button("🔄 Actualizar", type="primary"):
                     datos = {
-                        "empleadoId": int(empleado_id),
+                        "empleadoId": int(empleadoId),
                         "Nombre": nombre,
                         "Cargo": cargo
                     }
                     success, msg = guardar_solicitud("UPDATE", datos)
                     
                     if success:
-                        st.success("✅ Solicitud de actualización guardada")
+                        st.success(f"✅ Solicitud de actualización guardada - ID: {empleadoId}")
                     else:
                         st.error(f"❌ Error: {msg}")
     else:
@@ -183,22 +206,21 @@ elif menu == "🗑️ Eliminar Empleado":
     df = obtener_empleados()
     
     if not df.empty:
-        empleado_id = st.selectbox(
-            "Selecciona empleado",
-            df['empleadoId'],
-            format_func=lambda x: df[df['empleadoId']==x]['Nombre'].values[0]
+        empleadoId = st.selectbox(
+            "Selecciona ID del empleado",
+            sorted(df['empleadoId'].tolist())
         )
         
-        if empleado_id:
-            nombre = df[df['empleadoId'] == empleado_id]['Nombre'].values[0]
-            st.warning(f"⚠️ ¿Eliminar a **{nombre}**?")
+        if empleadoId:
+            nombre = df[df['empleadoId'] == empleadoId]['Nombre'].values[0]
+            st.warning(f"⚠️ ¿Eliminar a **{nombre}** (ID: {empleadoId})?")
             
             if st.button("🗑️ Sí, eliminar", type="primary"):
-                datos = {"empleadoId": int(empleado_id)}
+                datos = {"empleadoId": int(empleadoId)}
                 success, msg = guardar_solicitud("DELETE", datos)
                 
                 if success:
-                    st.success("✅ Solicitud de eliminación guardada")
+                    st.success(f"✅ Solicitud de eliminación guardada - ID: {empleadoId}")
                 else:
                     st.error(f"❌ Error: {msg}")
     else:
@@ -210,6 +232,6 @@ elif menu == "🗑️ Eliminar Empleado":
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray;'>
-    <p>✅ Sistema en tiempo real - Los cambios se procesan en 1-2 minutos</p>
+    <p>✅ IDs MANUALES - Validación de duplicados</p>
 </div>
 """, unsafe_allow_html=True)
